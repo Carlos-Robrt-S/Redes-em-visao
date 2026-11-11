@@ -221,3 +221,6 @@ __marimo__/
 
 #VisualStudio
 .vscode
+
+#internal Files
+dataset/data

@@ -12,3 +12,6 @@ selfNN: modelo próprio criado a partir da biblioteca Pytorch
 transferNN: modelo com arquitetura ...
 
 dataset: imagens usadas pelos modelos
+
+
+Para rodar um modelo: python3 -m "caminho para o modelo"
