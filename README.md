@@ -2,11 +2,12 @@
 Trabalho prático da disciplina Visão Computacional na UFJF, com o objetivo de aprofundar no conhecimento sobre Redes Neurais e processos de classificação de imagnes, usando o repositório público CIFAR-10
 
 
-Diretórios:
+<h1>Diretórios:</h1>
     model: contém o código dos modelos criados e usados para treino, validação e teste
     results: mantém registro dos resultados de treino, validação e teste dos modelos por run
     metaData: mantém registro dos Hiperparâmetros, camadas, métodos de otimização e função de perda usada em cada resultado
 
+<enumerate>
 selfNN: modelo próprio criado a partir da biblioteca Pytorch
 
 transferNN: modelo com arquitetura ...
@@ -15,3 +16,7 @@ dataset: imagens usadas pelos modelos
 
 
 Para rodar um modelo: python3 -m "caminho para o modelo"
+
+    Baseline Model: python -m selfNN.model.baselineModel
+
+</enumerate>
