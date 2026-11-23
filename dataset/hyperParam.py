@@ -1,6 +1,6 @@
 hyperParamsDict = {
     "BATCH_SIZE" : 64,
-    "EPOCHS" : 100,
+    "EPOCHS" : 50,
     "IMAGE_SIZE": (224, 224),
     "LR" : 1e-3,
     "FOLDS" : 5,

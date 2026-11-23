@@ -14,6 +14,8 @@ from sklearn.metrics import confusion_matrix
 #------------------------------------------------------------------------------------------------
 LR = hyperParamsDict["LR"]
 WEIGHT_DECAY = hyperParamsDict["WEIGHT_DECAY"]
+BATCH_SIZE = hyperParamsDict["BATCH_SIZE"]
+EPOCHS = hyperParamsDict["EPOCHS"]
 K = hyperParamsDict["FOLDS"]
 # {'airplane': 0, 'automobile': 1, 'bird': 2, 'cat': 3, 'deer': 4, 'dog': 5, 'frog': 6, 'horse': 7, 'ship': 8, 'truck': 9}
 classes = {
@@ -28,6 +30,7 @@ classes = {
     8 : "ship",
     9 : "truck"
 }
+labels = np.array(["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"])
 
 device = "cuda" if torch.cuda.is_available() == True else "cpu"
 #------------------------------------------------------------------------------------------------
@@ -53,6 +56,7 @@ class NeuralNetwork(nn.Module):
             nn.Flatten(),
             nn.Linear(1000, 500),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.Linear(500, 100),
             nn.ReLU(),
             nn.Linear(100, classes)
@@ -64,120 +68,165 @@ class NeuralNetwork(nn.Module):
 
 
 
-def run_epochs(dataloader: DataLoader, model: NeuralNetwork, device, loss_fn, optimizer, is_eval = False, epochs: int = 1):
+def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork, epochs: int, device, loss_fn, optimizer):
 
-    if is_eval:
-        model.eval()
-        grad_context = torch.no_grad()
-        epochs = 1
-    else:
-        model.train()
-        grad_context = torch.enable_grad()
-        
-    total_loss = 0
-    loss_log = []
-    accuracy_log = []
-    total_correct = 0
-    total_samples = 0
-    y_true = []
-    y_pred = []
+    #-----------------Train variables----------------------------------------
+    train_total_loss_per_epoch = 0
+    train_avg_loss_per_epoch = 0
+    train_loss_log = []
+    train_accuracy_log = []
+    train_total_correct_per_epoch = 0
+    train_total_samples_seen_per_epoch = 0
+    train_acc_per_epoch = 0
+    #---------------------------------------------------------
 
-    phase = "Val" if is_eval else "Train"
+    #-----------------Validation variables----------------------------------------
+    val_total_loss_per_epoch = 0
+    val_avg_loss_per_epoch = 0
+    val_loss_log = []
+    val_accuracy_log = []
+    val_total_correct_per_epoch = 0
+    val_total_samples_seen_per_epoch = 0
+    val_acc_per_epoch = 0
+    val_y_true = []
+    val_y_pred = []
+    val_best_acc = 0
+    cm = np.zeros((len(labels), len(labels)), dtype=int)
+    #---------------------------------------------------------
+
+#----------------------------Main loop-------------------------------------------------------------------
+    
 
     for epoch in range(epochs):
+        train_total_loss_per_epoch = 0
+        train_total_correct_per_epoch = 0
+        train_total_samples_seen_per_epoch = 0
+        train_acc_per_epoch = 0
+
+        print (f"------------------------------------Running epoch {epoch + 1}------------------------------------\n")
+
+        #----------------------Train loop-------------------------------------------------------------------------
+        phase = "Train"
         progress = tqdm(
-            enumerate(dataloader, start=1),
-            total=len(dataloader),
+            enumerate(train_set, start=1),
+            total=len(train_set),
             desc=f"{phase} | Epoch {epoch + 1}/{epochs}",
             leave=False,
         )
-        with grad_context:
-            for batch_idx, (X, y) in progress:
-                batch_size = len(y)
-                total_samples += batch_size
-                X, y = X.to(device), y.to(device)
+
+        model.train()
+
+        for batch_idx, (X, y) in progress:
+            batch_size = len(y)
+            train_total_samples_seen_per_epoch += batch_size
+            X, y = X.to(device, non_blocking=True), y.to(device, non_blocking=True)
+
+            pred = model(X)
+            preds = pred.argmax(1)
+
+            loss = loss_fn(pred, y)
+            batch_loss = loss.item()
+            train_total_loss_per_epoch += batch_loss
+            train_avg_loss_per_epoch = train_total_loss_per_epoch / (batch_idx)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            batch_correct = (preds == y).type(torch.float).sum().item()
+            train_total_correct_per_epoch += batch_correct
+            train_acc_per_epoch = train_total_correct_per_epoch / train_total_samples_seen_per_epoch
+
+            
+            progress.set_postfix(
+                batch=f"{batch_idx}/{len(train_set)}",
+                loss=f"{batch_loss:.4f}",
+                avg_loss=f"{train_avg_loss_per_epoch:.4f}",
+                acc=f"{train_acc_per_epoch:.4f}",
+            )
+
+        accuracy = train_total_correct_per_epoch/train_total_samples_seen_per_epoch
+        train_accuracy_log.append([epoch + 1, accuracy])
+        train_avg_loss_per_epoch = train_total_loss_per_epoch / (len(train_set))
+        train_loss_log.append([epoch + 1, train_avg_loss_per_epoch])
+
+        print(f"[{phase} | Epoch {epoch + 1}/{epochs}] "
+            f"Epoch accuracy: {accuracy:.4f} | Epoch loss: {train_avg_loss_per_epoch:.4f}")
+        
+        #-----------------------------------------------------------------------------------------------
+        #--------------------------------Validation loop---------------------------------------------------------------
+
+        val_total_loss_per_epoch = 0
+        val_avg_loss_per_epoch = 0
+        val_total_correct_per_epoch = 0
+        val_total_samples_seen_per_epoch = 0
+        val_acc_per_epoch = 0
+        val_y_pred = []
+        val_y_true = []
+
+        model.eval()
+
+        phase = "Validation"
+        print (f"{phase} in progress...")
+        progress = tqdm(
+                    enumerate(val_set, start=1),
+                    total=len(val_set),
+                    desc=f"{phase} | Epoch {epoch + 1}/{epochs}",
+                    leave=False,
+                )
+
+        for batch_idx, (X, y) in progress:
+            batch_size = len(y)
+            val_total_samples_seen_per_epoch += batch_size
+            X, y = X.to(device, non_blocking=True), y.to(device, non_blocking=True)
+
+            with torch.no_grad():
 
                 pred = model(X)
                 preds = pred.argmax(1)
 
                 loss = loss_fn(pred, y)
                 batch_loss = loss.item()
-                total_loss += batch_loss
-                avg_loss_epoch = total_loss / (batch_idx + epoch*len(dataloader))
-
-                if not is_eval:
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                else:
-                    y_pred.extend(preds.detach().cpu().tolist())
-                    y_true.extend(y.tolist())
+                val_total_loss_per_epoch += batch_loss
+                val_avg_loss_per_epoch = val_total_loss_per_epoch / (batch_idx)
 
                 batch_correct = (preds == y).type(torch.float).sum().item()
-                batch_acc = batch_correct / batch_size
-                total_correct += batch_correct
-                avg_acc_epoch = total_correct / total_samples
+                val_total_correct_per_epoch += batch_correct
+                val_acc_per_epoch = val_total_correct_per_epoch / val_total_samples_seen_per_epoch
 
-                
-                progress.set_postfix(
-                    batch=f"{batch_idx}/{len(dataloader)}",
-                    loss=f"{batch_loss:.4f}",
-                    avg_loss=f"{avg_loss_epoch:.4f}",
-                    acc=f"{batch_acc:.4f}",
-                    avg_acc=f"{avg_acc_epoch:.4f}",
-                )
 
-        accuracy = total_correct/total_samples
-        accuracy_log.append(accuracy)
-        loss = total_loss / ((epoch+1)*len(dataloader))
-        loss_log.append(loss)
+            val_y_true.extend(y.detach().cpu().tolist())
+            val_y_pred.extend(preds.detach().cpu().tolist())
 
-        print(f"[{phase} | Epoch {epoch + 1}/{epochs}]"
-            f"Accumulated accuracy: {accuracy:.4f} | Accumulated loss: {loss:.4f}")
+            progress.set_postfix(
+                batch=f"{batch_idx}/{len(val_set)}",
+                loss=f"{batch_loss:.4f}",
+                avg_loss=f"{val_avg_loss_per_epoch:.4f}",
+                acc=f"{val_acc_per_epoch:.4f}",
+            )
 
-    avrg_loss = total_loss/(len(dataloader) * epochs)
-    final_acc = total_correct/total_samples
+        val_accuracy = val_total_correct_per_epoch / val_total_samples_seen_per_epoch
+        val_accuracy_log.append([epoch + 1, val_accuracy])
+        val_avg_loss_per_epoch = val_total_loss_per_epoch / (len(val_set))
+        val_loss_log.append([epoch + 1, val_avg_loss_per_epoch])
 
-    if is_eval:
-        cm = confusion_matrix(y_true=y_true, y_pred=y_pred)
-    else:
-        cm = None
 
-    return loss_log, accuracy_log, avrg_loss, final_acc, cm
-
+        print(f"[{phase} | Epoch {epoch + 1}/{epochs}] "
+            f"Epoch accuracy: {val_accuracy:.4f} | Epoch loss: {val_avg_loss_per_epoch:.4f}")
 
         
+        if val_accuracy > val_best_acc:
+            val_best_acc = val_accuracy
+            print (f"New best validation accuracy: {val_best_acc:.4}")
+            cm = confusion_matrix(y_true=val_y_true, y_pred=val_y_pred, labels=np.arange(len(labels)))
+        #-----------------------------------------------------------------------------------------------
+
+        print ("---------------------------------------------------------------------------------------\n")
+                
+
+    return train_loss_log, train_accuracy_log, val_loss_log, val_accuracy_log, cm
 
 
-    """ else:
-        model.eval()
-
-        total_loss = 0
-        loss_log = []
-        accuracy_log = []
-        total_correct = 0
-        total_samples = 0
-
-        with torch.no_grad():
-            for X, y in dataloader:
-                total_samples += len(y)
-                X, y = X.to(device), y.to(device)
-
-                pred = model(X)
-
-                loss = loss_fn(pred, y)
-                total_loss += loss.item()
-                total_correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-
-                loss_log.append(loss.item())
-                accuracy = total_correct/total_samples
-                accuracy_log.append(accuracy)
-
-        avrg_loss = total_loss/len(dataloader)
-        final_acc = total_correct/total_samples
-
-        return loss_log, accuracy_log, avrg_loss, final_acc """
 
 
 def main() -> None:
@@ -188,64 +237,20 @@ def main() -> None:
 
     dataset = ImgDataset()
 
-    folds = dataset.getFolds(k_folds=hyperParamsDict["FOLDS"], 
-                            batch_size=hyperParamsDict["BATCH_SIZE"], 
-                            shuffle=True, 
-                            num_workers=hyperParamsDict["NUM_WORKERS"], 
-                            seed=hyperParamsDict["SEED"])
+    train_set, val_set = dataset.getTrainValSet(batch_size=BATCH_SIZE)
 
+    model = NeuralNetwork().to(device=device)
 
-    for fold in folds:
-        print (f"------------------------Fold {fold["fold"]}------------------------\n")
+    print (f"Model:\n {model.model}")
 
-        model = NeuralNetwork().to(device=device)
-        train_set = fold["train_loader"]
-        val_set = fold["val_loader"]
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.AdamW(model.parameters(), 
+                                    hyperParamsDict["LR"], 
+                                    weight_decay=hyperParamsDict["WEIGHT_DECAY"])
 
-        loss_fn = nn.CrossEntropyLoss()
-        optimizer = torch.optim.AdamW(model.parameters(), 
-                                     hyperParamsDict["LR"], 
-                                     weight_decay=hyperParamsDict["WEIGHT_DECAY"])
+    train_loss_log, train_acc_log, val_loss_log, val_acc_log, cm = run_epochs(train_set=train_set, val_set=val_set, model=model, device=device, loss_fn=loss_fn, optimizer=optimizer, epochs=EPOCHS)
 
-        loss_train, acc_train, avrg_train_loss, final_train_acc, _ = run_epochs(train_set, model, device, loss_fn, optimizer, is_eval=False, epochs=hyperParamsDict["EPOCHS"])
-        loss_val, acc_val, avrg_val_loss, final_val_acc, cm = run_epochs(val_set, model, device, loss_fn, optimizer, is_eval=True)
-
-        print (cm)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    print (cm)
 
 
 if __name__ == "__main__":
