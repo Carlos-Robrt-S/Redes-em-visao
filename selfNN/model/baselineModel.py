@@ -16,7 +16,6 @@ LR = hyperParamsDict["LR"]
 WEIGHT_DECAY = hyperParamsDict["WEIGHT_DECAY"]
 BATCH_SIZE = hyperParamsDict["BATCH_SIZE"]
 EPOCHS = hyperParamsDict["EPOCHS"]
-K = hyperParamsDict["FOLDS"]
 # {'airplane': 0, 'automobile': 1, 'bird': 2, 'cat': 3, 'deer': 4, 'dog': 5, 'frog': 6, 'horse': 7, 'ship': 8, 'truck': 9}
 classes = {
     0 : "airplane",
