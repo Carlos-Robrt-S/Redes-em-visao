@@ -1,0 +1,25 @@
+{
+    "run": "run1",
+    "timestamp": "2026-11-26T10:41:58",
+    "device": "cuda",
+    "hyperparameters": {
+        "BATCH_SIZE": 64,
+        "EPOCHS": 50,
+        "IMAGE_SIZE": [
+            224,
+            224
+        ],
+        "LR": 0.001,
+        "FOLDS": 5,
+        "WEIGHT_DECAY": 0.01,
+        "SEED": 13,
+        "NUM_WORKERS": 4,
+        "LOSS_FUNC": "CrossEntropy",
+        "OPTIMIZER_NAME": "AdamW"
+    },
+    "optimizer": "AdamW",
+    "loss_function": "CrossEntropyLoss",
+    "best_val_accuracy": 0.7124,
+    "checkpoint_path": null,
+    "architecture": "Sequential(\n  (0): Conv2d(3, 10, kernel_size=(3, 3), stride=(1, 1))\n  (1): ReLU()\n  (2): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (3): Conv2d(10, 20, kernel_size=(3, 3), stride=(1, 1))\n  (4): ReLU()\n  (5): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (6): Conv2d(20, 40, kernel_size=(3, 3), stride=(1, 1))\n  (7): ReLU()\n  (8): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (9): Conv2d(40, 40, kernel_size=(5, 5), stride=(1, 1))\n  (10): ReLU()\n  (11): AvgPool2d(kernel_size=4, stride=4, padding=0)\n  (12): Flatten(start_dim=1, end_dim=-1)\n  (13): Linear(in_features=1000, out_features=500, bias=True)\n  (14): ReLU()\n  (15): Dropout(p=0.2, inplace=False)\n  (16): Linear(in_features=500, out_features=100, bias=True)\n  (17): ReLU()\n  (18): Linear(in_features=100, out_features=10, bias=True)\n)"
+}

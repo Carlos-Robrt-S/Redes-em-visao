@@ -10,6 +10,7 @@ from tqdm import tqdm
 from dataset.loader import ImgDataset
 from dataset.hyperParam import hyperParamsDict
 from sklearn.metrics import confusion_matrix
+from selfNN.auxClasses.filePlot import save_metrics, save_run_metadata
 
 #------------------------------------------------------------------------------------------------
 LR = hyperParamsDict["LR"]
@@ -91,7 +92,10 @@ def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork,
     val_y_pred = []
     val_best_acc = 0
     cm = np.zeros((len(labels), len(labels)), dtype=int)
+    best_model = dict()
     #---------------------------------------------------------
+
+
 
 #----------------------------Main loop-------------------------------------------------------------------
     
@@ -174,6 +178,8 @@ def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork,
                     leave=False,
                 )
 
+        y_true = val_y_true
+        y_pred = val_y_pred
         for batch_idx, (X, y) in progress:
             batch_size = len(y)
             val_total_samples_seen_per_epoch += batch_size
@@ -194,8 +200,8 @@ def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork,
                 val_acc_per_epoch = val_total_correct_per_epoch / val_total_samples_seen_per_epoch
 
 
-            val_y_true.extend(y.detach().cpu().tolist())
-            val_y_pred.extend(preds.detach().cpu().tolist())
+            y_true.extend(y.detach().cpu().tolist())
+            y_pred.extend(preds.detach().cpu().tolist())
 
             progress.set_postfix(
                 batch=f"{batch_idx}/{len(val_set)}",
@@ -215,15 +221,22 @@ def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork,
 
         
         if val_accuracy > val_best_acc:
+            val_y_true = y_true
+            val_y_pred = y_pred
             val_best_acc = val_accuracy
             print (f"New best validation accuracy: {val_best_acc:.4}")
+            best_model = {
+                k: v.detach().cpu().clone()
+                for k, v in model.state_dict().items()
+            }
+            print(f"New best model saved")
             cm = confusion_matrix(y_true=val_y_true, y_pred=val_y_pred, labels=np.arange(len(labels)))
         #-----------------------------------------------------------------------------------------------
 
         print ("---------------------------------------------------------------------------------------\n")
                 
 
-    return train_loss_log, train_accuracy_log, val_loss_log, val_accuracy_log, cm, val_y_true, val_y_true
+    return train_loss_log, train_accuracy_log, val_loss_log, val_accuracy_log, cm, val_y_true, val_y_pred, best_model
 
 
 
@@ -247,11 +260,29 @@ def main() -> None:
                                     hyperParamsDict["LR"], 
                                     weight_decay=hyperParamsDict["WEIGHT_DECAY"])
 
-    train_loss_log, train_acc_log, val_loss_log, val_acc_log, cm, val_y_true, val_y_pred = run_epochs(train_set=train_set, val_set=val_set, model=model, device=device, loss_fn=loss_fn, optimizer=optimizer, epochs=EPOCHS)
+    train_loss_log, train_acc_log, val_loss_log, val_acc_log, cm, val_y_true, val_y_pred, best_model = run_epochs(train_set=train_set, val_set=val_set, model=model, device=device, loss_fn=loss_fn, optimizer=optimizer, epochs=EPOCHS)
 
-    print (cm)
+    best_val_acc = max((acc for _, acc in val_acc_log), default=0.0)
 
-    
+    run_nmbr = save_metrics(train_loss_log=train_loss_log,
+                 train_acc_log=train_acc_log,
+                 val_loss_log=val_loss_log,
+                 val_acc_log=val_acc_log,
+                 cm=cm,
+                 val_y_true=val_y_true,
+                 val_y_pred=val_y_pred,
+                 best_model=best_model)
+
+    save_run_metadata(
+        run_number=run_nmbr,
+        hyperparams=hyperParamsDict,
+        model_arch=str(model.model),
+        optimizer_name=optimizer.__class__.__name__,
+        loss_name=loss_fn.__class__.__name__,
+        device=device,
+        best_val_acc=best_val_acc,
+        checkpoint_path=None
+    )
 
 
 if __name__ == "__main__":

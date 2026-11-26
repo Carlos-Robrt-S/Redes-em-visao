@@ -224,3 +224,6 @@ __marimo__/
 
 #internal Files
 dataset/data
+
+!selfNN/results/
+!selfNN/results/**
