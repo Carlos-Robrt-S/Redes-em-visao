@@ -223,7 +223,7 @@ def run_epochs(train_set: DataLoader, val_set: DataLoader, model: NeuralNetwork,
         print ("---------------------------------------------------------------------------------------\n")
                 
 
-    return train_loss_log, train_accuracy_log, val_loss_log, val_accuracy_log, cm
+    return train_loss_log, train_accuracy_log, val_loss_log, val_accuracy_log, cm, val_y_true, val_y_true
 
 
 
@@ -247,9 +247,11 @@ def main() -> None:
                                     hyperParamsDict["LR"], 
                                     weight_decay=hyperParamsDict["WEIGHT_DECAY"])
 
-    train_loss_log, train_acc_log, val_loss_log, val_acc_log, cm = run_epochs(train_set=train_set, val_set=val_set, model=model, device=device, loss_fn=loss_fn, optimizer=optimizer, epochs=EPOCHS)
+    train_loss_log, train_acc_log, val_loss_log, val_acc_log, cm, val_y_true, val_y_pred = run_epochs(train_set=train_set, val_set=val_set, model=model, device=device, loss_fn=loss_fn, optimizer=optimizer, epochs=EPOCHS)
 
     print (cm)
+
+    
 
 
 if __name__ == "__main__":

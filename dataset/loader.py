@@ -86,8 +86,8 @@ class ImgDataset(dt.CIFAR10):
         targets = np.array(self.targets)
         indices = np.arange(len(self.data))
         train_ind, val_ind = train_test_split(indices, 
-                                              test_size=0.2, 
-                                              train_size=0.8, 
+                                              test_size=0.1, 
+                                              train_size=0.9, 
                                               random_state=seed, 
                                               shuffle=shuffle, 
                                               stratify=targets)
@@ -125,10 +125,9 @@ class ImgDataset(dt.CIFAR10):
             ys_val.extend(y.tolist())
 
         print (f"Train size: {len(ys_train)} || Ammount per classes: {np.bincount(ys_train).tolist()}")
-        print (f"val size: {len(ys_val)} || Ammount per classes: {np.bincount(ys_val).tolist()}")
+        print (f"Val size: {len(ys_val)} || Ammount per classes: {np.bincount(ys_val).tolist()}")
         """
         Print: 
-        Train size: 40000 || Ammount per classes: [4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000, 4000]
-        val size: 10000 || Ammount per classes: [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
+        Train size: 45000 || Ammount per classes: [4500, 4500, 4500, 4500, 4500, 4500, 4500, 4500, 4500, 4500]
+        Val size: 5000 || Ammount per classes: [500, 500, 500, 500, 500, 500, 500, 500, 500, 500]
         """
-
