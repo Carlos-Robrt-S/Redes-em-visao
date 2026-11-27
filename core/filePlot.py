@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay, precision_recall_fscore_support
+from core.paths import SELF_RESULTS_DIR, SELF_METADATA_DIR
 
 CLASS_NAMES = [
     "airplane",
@@ -26,7 +27,7 @@ def write_metrics_csv(
     loss_log: list[list[float]],
     acc_log: list[list[float]],
     phase: str,
-    output_dir: str | Path = "./selfNN/results/CSVs",
+    output_dir: str | Path = SELF_RESULTS_DIR / "CSVs",
     filename: str | None = None,
 ) -> Path:
     out_dir = Path(output_dir)
@@ -60,7 +61,7 @@ def plot_loss_and_accuracy(
     train_acc_log: list[list[float]],
     val_loss_log: list[list[float]],
     val_acc_log: list[list[float]],
-    output_dir: str | Path = "./selfNN/results/plots",
+    output_dir: str | Path = SELF_RESULTS_DIR / "plots",
     filename: str = "loss_accuracy_curves.png",
 ) -> Path:
     out_dir = Path(output_dir)
@@ -105,7 +106,7 @@ def plot_loss_and_accuracy(
 def plot_confusion_matrix(
     cm: np.ndarray,
     class_names: list[str] | np.ndarray = CLASS_NAMES,
-    output_dir: str | Path = "./selfNN/results/plots",
+    output_dir: str | Path = SELF_RESULTS_DIR / "plots",
     filename: str = "confusion_matrix.png",
     title: str = "Matriz de Confusão",
 ) -> Path:
@@ -131,7 +132,7 @@ def save_summary_log(
     y_pred: list[int] | np.ndarray,
     class_names: list[str] | np.ndarray = CLASS_NAMES,
     phase: str = "validation",
-    output_dir: str | Path = "./selfNN/results/logs",
+    output_dir: str | Path = SELF_RESULTS_DIR / "logs",
     filename: str | None = None,
 ) -> Path:
     out_dir = Path(output_dir)
@@ -194,7 +195,8 @@ def save_run_metadata(
     device: str,
     best_val_acc: float,
     checkpoint_path: str | Path | None = None,
-    output_dir: str | Path = "./selfNN/metaData",
+    output_dir: str | Path = SELF_METADATA_DIR,
+    extra_info: dict | None = None,
 ) -> Path:
     meta_dir = Path(output_dir)
     meta_dir.mkdir(parents=True, exist_ok=True)
@@ -221,6 +223,8 @@ def save_run_metadata(
         "checkpoint_path": str(checkpoint_path) if checkpoint_path else None,
         "architecture": model_arch,
     }
+    if extra_info:
+        metadata.update(extra_info)
 
     meta_path.write_text(
         json.dumps(metadata, indent=4, ensure_ascii=False) + "\n",
@@ -237,9 +241,10 @@ def save_metrics(
     cm: np.ndarray,
     val_y_true: list,
     val_y_pred: list,
-    best_model) -> int:
+    best_model,
+    base_dir: str | Path = SELF_RESULTS_DIR) -> int:
 
-    base_dir = Path("./selfNN/results")
+    base_dir = Path(base_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
 
     existing_runs = [
@@ -248,7 +253,7 @@ def save_metrics(
         if p.is_dir() and p.name.startswith("run") and p.name.removeprefix("run").isdigit()
     ]
     run_nmbr = max(existing_runs, default=0) + 1
-    out_dir = Path(f"./selfNN/results/run{run_nmbr}")
+    out_dir = base_dir / f"run{run_nmbr}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     path_csv_train = write_metrics_csv(output_dir=f"{out_dir}/CSVs", loss_log=train_loss_log, acc_log=train_acc_log, phase="Train")

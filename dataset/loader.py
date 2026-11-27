@@ -7,10 +7,11 @@ import torchvision.transforms.v2 as v2
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import KFold, train_test_split
 from .hyperParam import hyperParamsDict
+from core.paths import DATA_DIR
 from collections import Counter
 
 
-def getMeanStd(dataset: ImgDataset):
+def getMeanStd(dataset: "ImgDataset"):
     channelSum = torch.zeros(3, dtype=torch.float64)
     channelSqrdSum = torch.zeros(3, dtype=torch.float64)
     total_images = 0
@@ -35,6 +36,10 @@ def getMeanStd(dataset: ImgDataset):
 CUSTOM_MEAN = [0.4914, 0.4822, 0.4465]
 CUSTOM_STD = [0.2454, 0.2419, 0.2602]
 
+# Estatísticas com que os pesos pré-treinados do torchvision foram treinados
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+
 BATCH_SIZE = hyperParamsDict["BATCH_SIZE"]
 NUM_WORKERS = hyperParamsDict["NUM_WORKERS"]
 SEED = hyperParamsDict["SEED"]
@@ -55,10 +60,18 @@ transform224x224 = v2.Compose([
                  std=CUSTOM_STD),
 ])
 
+transformImagenet224x224 = v2.Compose([
+    v2.ToImage(),
+    v2.Resize(hyperParamsDict["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean=IMAGENET_MEAN,
+                 std=IMAGENET_STD),
+])
+
 
 class ImgDataset(dt.CIFAR10):
-    def __init__(self, root: str | Path = "./dataset/data", train: bool = True, transform: Callable[..., Any] | None = None, target_transform: Callable[..., Any] | None = None, download: bool = False) -> None:
-        super().__init__(root, train, transform224x224, target_transform, download)
+    def __init__(self, root: str | Path = DATA_DIR, train: bool = True, transform: Callable[..., Any] | None = None, target_transform: Callable[..., Any] | None = None, download: bool = False) -> None:
+        super().__init__(root, train, transform or transform224x224, target_transform, download)
 
     def getFolds(self, k_folds: int, batch_size: int, shuffle: bool, num_workers: int, seed: int):
         kfold = KFold(k_folds, shuffle=shuffle, random_state=seed)
@@ -111,6 +124,16 @@ class ImgDataset(dt.CIFAR10):
                                 persistent_workers=persistent)
 
         return train_loader, val_loader
+
+    @staticmethod
+    def getTestSet(batch_size: int = BATCH_SIZE, transform: Callable[..., Any] | None = None, num_workers: int = NUM_WORKERS):
+        # Usar só na avaliação final das configurações escolhidas pela validação
+        test_dataset = ImgDataset(train=False, transform=transform)
+        return DataLoader(test_dataset,
+                          batch_size=batch_size,
+                          shuffle=False,
+                          num_workers=num_workers,
+                          pin_memory=True)
 
     def checkDistribution(self):
         train_set, val_set = self.getTrainValSet(batch_size=BATCH_SIZE, num_workers=0)

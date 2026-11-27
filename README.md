@@ -9,13 +9,15 @@ Para permitir comparações justas entre arquiteturas próprias e modelos basead
 
 ### Organização dos Diretórios
 
-* **`dataset/`**: contém os dados do CIFAR-10 (`data/`), os hiperparâmetros centralizados (`hyperParam.py`) e os utilitários de carregamento, normalização e divisão estratificada (`loader.py`)[cite: 1].
-* **`selfNN/`**: reúne a arquitetura própria construída do zero com PyTorch, incluindo classes auxiliares (`auxClasses/`), definições dos modelos (`model/`), registros de execução (`results/`) e metadados (`metaData/`)[cite: 1].
-* **`transferNN/`**: estrutura destinada aos modelos com *transfer learning* e arquiteturas pré-treinadas, com pastas equivalentes para `model/`, `results/` e `metaData/`[cite: 1].
+* **`train.py`**: ponto de entrada único para treinar qualquer modelo (CNN própria ou pré-treinado).
+* **`core/`**: código compartilhado entre as abordagens: laço de treino/validação e medição de tempo (`trainer.py`), gravação de métricas, gráficos e metadados (`filePlot.py`) e caminhos do projeto (`paths.py`).
+* **`dataset/`**: contém os dados do CIFAR-10 (`data/`), os hiperparâmetros centralizados (`hyperParam.py`) e os utilitários de carregamento, normalização, divisão estratificada e conjunto de teste (`loader.py`).
+* **`selfNN/`**: CNN própria construída do zero, com definições dos modelos (`model/`), resultados (`results/`) e metadados (`metaData/`).
+* **`transferNN/`**: modelos pré-treinados (ResNet18 e MobileNetV2) e estratégias de congelamento (`model/transferModels.py`), com pastas equivalentes para `results/` e `metaData/`.
 * **Subpastas por abordagem (`model/`, `results/`, `metaData/`)**:
-  * **`model/`**: código-fonte dos modelos utilizados nas etapas de treino, validação e teste[cite: 1].
-  * **`results/`**: registro das métricas de treino, validação e teste (acurácia, *loss*, matriz de confusão e *checkpoints*) por execução (*run*).
-  * **`metaData/`**: registro dos hiperparâmetros, camadas, otimizadores e funções de perda utilizados em cada experimento.
+  * **`model/`**: apenas as definições dos modelos.
+  * **`results/<experimento>/runN/`**: métricas de treino e validação (acurácia, *loss*, matriz de confusão e *checkpoint*) por execução.
+  * **`metaData/<experimento>/runN_metadata.json`**: hiperparâmetros, arquitetura, otimizador, função de perda, número de parâmetros e tempos de treino e inferência.
 
 ---
 
@@ -44,9 +46,15 @@ Para permitir comparações justas entre arquiteturas próprias e modelos basead
 
 Execute os módulos a partir da raiz do projeto usando `python -m` (ou `python3 -m`):
 
-* **Baseline (`selfNN`)**:
+* **CNN própria (`selfNN`)**:
   ```bash
-  python -m selfNN.model.baselineModel
+  python -m train --model baseline
+  ```
+
+* **Transfer learning (`transferNN`)**: `--model` em `resnet18` ou `mobilenet_v2` e `--strategy` em `frozen`, `partial`, `full` ou `scratch`:
+  ```bash
+  python -m train --model resnet18 --strategy frozen
+  python -m train --model mobilenet_v2 --strategy full --epochs 10
   ```
 
 * **Utilitário de carga e inspeção do dataset**:
