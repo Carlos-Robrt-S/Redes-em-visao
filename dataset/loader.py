@@ -36,9 +36,6 @@ def get_mean_std(dataset: "ImgDataset"):
 CUSTOM_MEAN = [0.4914, 0.4822, 0.4465]
 CUSTOM_STD = [0.2454, 0.2419, 0.2602]
 
-# Estatísticas com que os pesos pré-treinados do torchvision foram treinados
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
 
 BATCH_SIZE = HYPER_PARAMS["BATCH_SIZE"]
 NUM_WORKERS = HYPER_PARAMS["NUM_WORKERS"]
@@ -60,13 +57,7 @@ transform_cifar_224 = v2.Compose([
                  std=CUSTOM_STD),
 ])
 
-transform_imagenet_224 = v2.Compose([
-    v2.ToImage(),
-    v2.Resize(HYPER_PARAMS["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
-    v2.ToDtype(torch.float32, scale=True),
-    v2.Normalize(mean=IMAGENET_MEAN,
-                 std=IMAGENET_STD),
-])
+
 
 
 class ImgDataset(dt.CIFAR10):

@@ -1,9 +1,3 @@
-"""
-Ponto de entrada único para treinar qualquer modelo (na raiz do projeto):
-    python -m train --model baseline
-    python -m train --model resnet18 --strategy frozen
-    python -m train --model mobilenet_v2 --strategy full --epochs 10
-"""
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +8,7 @@ from core.trainer import run_epochs, evaluate, count_parameters
 from core.file_plot import save_metrics, save_run_metadata
 from core.reproducibility import seed_everything
 from core.paths import SELF_RESULTS_DIR, SELF_METADATA_DIR, TRANSFER_RESULTS_DIR, TRANSFER_METADATA_DIR
-from dataset.loader import ImgDataset, transform_cifar_224, transform_imagenet_224
+from dataset.loader import ImgDataset, transform_cifar_224
 from dataset.hyper_param import HYPER_PARAMS, TRANSFER_HYPER_PARAMS
 from self_nn.model.baseline_model import NeuralNetwork
 from self_nn.model.batch_norm_model import BatchNormNetwork
@@ -22,7 +16,7 @@ from self_nn.model.wide_model import WideNetwork
 from self_nn.model.gap_model import GapNetwork
 from transfer_nn.model.transfer_models import ARCHITECTURES, STRATEGIES, build_transfer_model
 
-# Registro das CNNs próprias: para um novo experimento da etapa 1, crie a classe e adicione aqui
+
 SELF_MODELS = {
     "baseline": NeuralNetwork,
     "batch_norm": BatchNormNetwork,
@@ -56,8 +50,7 @@ def build_experiment(model_name: str, strategy: str | None, epochs: int | None, 
         hp["LR"] = hp["LR_BY_STRATEGY"][strategy]
         model = build_transfer_model(model_name, strategy)
         name = f"{model_name}_{strategy}"
-        # Pesos do ImageNet esperam a normalização do ImageNet; do zero usa a do CIFAR (como o baseline)
-        transform = transform_cifar_224 if strategy == "scratch" else transform_imagenet_224
+        transform = transform_cifar_224
         results_dir, metadata_dir = TRANSFER_RESULTS_DIR / name, TRANSFER_METADATA_DIR / name
 
     if epochs is not None:
