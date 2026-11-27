@@ -227,3 +227,5 @@ dataset/data
 
 !selfNN/results/
 !selfNN/results/**
+
+results_*.zip
