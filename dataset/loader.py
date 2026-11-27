@@ -6,26 +6,27 @@ import torchvision.datasets as dt
 import torchvision.transforms.v2 as v2
 from torch.utils.data import DataLoader, Subset
 from sklearn.model_selection import KFold, train_test_split
-from .hyperParam import hyperParamsDict
+from .hyper_param import HYPER_PARAMS
+from core.paths import DATA_DIR
 from collections import Counter
 
 
-def getMeanStd(dataset: ImgDataset):
-    channelSum = torch.zeros(3, dtype=torch.float64)
-    channelSqrdSum = torch.zeros(3, dtype=torch.float64)
+def get_mean_std(dataset: "ImgDataset"):
+    channel_sum = torch.zeros(3, dtype=torch.float64)
+    channel_sqrd_sum = torch.zeros(3, dtype=torch.float64)
     total_images = 0
 
     for img, _ in dataset:
         total_images += 1
         # img tem formato (C, H, W) em float32 [0.0, 1.0]
-        channelSum += img.to(torch.float64).sum(dim=(1, 2))
-        channelSqrdSum += (img.to(torch.float64) ** 2).sum(dim=(1, 2))
+        channel_sum += img.to(torch.float64).sum(dim=(1, 2))
+        channel_sqrd_sum += (img.to(torch.float64) ** 2).sum(dim=(1, 2))
 
     _, h, w = dataset[0][0].shape
     num_pixels = total_images * h * w
 
-    new_mean = (channelSum / num_pixels).to(torch.float32)
-    variance = (channelSqrdSum / num_pixels) - ((channelSum / num_pixels) ** 2)
+    new_mean = (channel_sum / num_pixels).to(torch.float32)
+    variance = (channel_sqrd_sum / num_pixels) - ((channel_sum / num_pixels) ** 2)
     new_std = torch.sqrt(torch.clamp(variance, min=0.0)).to(torch.float32)
 
     print(f"Média: {new_mean}\nDesvio: {new_std}")
@@ -35,32 +36,35 @@ def getMeanStd(dataset: ImgDataset):
 CUSTOM_MEAN = [0.4914, 0.4822, 0.4465]
 CUSTOM_STD = [0.2454, 0.2419, 0.2602]
 
-BATCH_SIZE = hyperParamsDict["BATCH_SIZE"]
-NUM_WORKERS = hyperParamsDict["NUM_WORKERS"]
-SEED = hyperParamsDict["SEED"]
+
+BATCH_SIZE = HYPER_PARAMS["BATCH_SIZE"]
+NUM_WORKERS = HYPER_PARAMS["NUM_WORKERS"]
+SEED = HYPER_PARAMS["SEED"]
 #----------------------------------------------------------------------
 
 
 transform_for_calculation = v2.Compose([
     v2.ToImage(),
-    v2.Resize(hyperParamsDict["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
+    v2.Resize(HYPER_PARAMS["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
     v2.ToDtype(torch.float32, scale=True),
 ])
 
-transform224x224 = v2.Compose([
+transform_cifar_224 = v2.Compose([
     v2.ToImage(),
-    v2.Resize(hyperParamsDict["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
+    v2.Resize(HYPER_PARAMS["IMAGE_SIZE"], interpolation=v2.InterpolationMode.BICUBIC),
     v2.ToDtype(torch.float32, scale=True),
     v2.Normalize(mean=CUSTOM_MEAN,
                  std=CUSTOM_STD),
 ])
 
 
-class ImgDataset(dt.CIFAR10):
-    def __init__(self, root: str | Path = "./dataset/data", train: bool = True, transform: Callable[..., Any] | None = None, target_transform: Callable[..., Any] | None = None, download: bool = False) -> None:
-        super().__init__(root, train, transform224x224, target_transform, download)
 
-    def getFolds(self, k_folds: int, batch_size: int, shuffle: bool, num_workers: int, seed: int):
+
+class ImgDataset(dt.CIFAR10):
+    def __init__(self, root: str | Path = DATA_DIR, train: bool = True, transform: Callable[..., Any] | None = None, target_transform: Callable[..., Any] | None = None, download: bool = False) -> None:
+        super().__init__(root, train, transform or transform_cifar_224, target_transform, download)
+
+    def get_folds(self, k_folds: int, batch_size: int, shuffle: bool, num_workers: int, seed: int):
         kfold = KFold(k_folds, shuffle=shuffle, random_state=seed)
         folds = []
 
@@ -82,7 +86,7 @@ class ImgDataset(dt.CIFAR10):
 
         return folds
 
-    def getTrainValSet(self, batch_size: int, shuffle: bool = True, num_workers: int = NUM_WORKERS, seed: int = SEED):
+    def get_train_val_set(self, batch_size: int, shuffle: bool = True, num_workers: int = NUM_WORKERS, seed: int = SEED):
         targets = np.array(self.targets)
         indices = np.arange(len(self.data))
         train_ind, val_ind = train_test_split(indices, 
@@ -112,8 +116,18 @@ class ImgDataset(dt.CIFAR10):
 
         return train_loader, val_loader
 
-    def checkDistribution(self):
-        train_set, val_set = self.getTrainValSet(batch_size=BATCH_SIZE, num_workers=0)
+    @staticmethod
+    def get_test_set(batch_size: int = BATCH_SIZE, transform: Callable[..., Any] | None = None, num_workers: int = NUM_WORKERS):
+        # Usar só na avaliação final das configurações escolhidas pela validação
+        test_dataset = ImgDataset(train=False, transform=transform)
+        return DataLoader(test_dataset,
+                          batch_size=batch_size,
+                          shuffle=False,
+                          num_workers=num_workers,
+                          pin_memory=True)
+
+    def check_distribution(self):
+        train_set, val_set = self.get_train_val_set(batch_size=BATCH_SIZE, num_workers=0)
 
         ys_train = []
         ys_val = []

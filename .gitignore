@@ -225,7 +225,12 @@ __marimo__/
 #internal Files
 dataset/data
 
-!selfNN/results/
-!selfNN/results/**
+!self_nn/results/
+!self_nn/results/**
+!transfer_nn/results/
+!transfer_nn/results/**
+!test_results/
+!test_results/**
 
+# Pacotes de resultados gerados pelos scripts de GPU
 results_*.zip

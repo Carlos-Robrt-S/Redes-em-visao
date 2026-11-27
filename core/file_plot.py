@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import ConfusionMatrixDisplay, precision_recall_fscore_support
+from core.paths import SELF_RESULTS_DIR, SELF_METADATA_DIR
 
 CLASS_NAMES = [
     "airplane",
@@ -26,7 +27,7 @@ def write_metrics_csv(
     loss_log: list[list[float]],
     acc_log: list[list[float]],
     phase: str,
-    output_dir: str | Path = "./selfNN/results/CSVs",
+    output_dir: str | Path = SELF_RESULTS_DIR / "csv",
     filename: str | None = None,
 ) -> Path:
     out_dir = Path(output_dir)
@@ -60,7 +61,7 @@ def plot_loss_and_accuracy(
     train_acc_log: list[list[float]],
     val_loss_log: list[list[float]],
     val_acc_log: list[list[float]],
-    output_dir: str | Path = "./selfNN/results/plots",
+    output_dir: str | Path = SELF_RESULTS_DIR / "plots",
     filename: str = "loss_accuracy_curves.png",
 ) -> Path:
     out_dir = Path(output_dir)
@@ -105,7 +106,7 @@ def plot_loss_and_accuracy(
 def plot_confusion_matrix(
     cm: np.ndarray,
     class_names: list[str] | np.ndarray = CLASS_NAMES,
-    output_dir: str | Path = "./selfNN/results/plots",
+    output_dir: str | Path = SELF_RESULTS_DIR / "plots",
     filename: str = "confusion_matrix.png",
     title: str = "Matriz de Confusão",
 ) -> Path:
@@ -131,7 +132,7 @@ def save_summary_log(
     y_pred: list[int] | np.ndarray,
     class_names: list[str] | np.ndarray = CLASS_NAMES,
     phase: str = "validation",
-    output_dir: str | Path = "./selfNN/results/logs",
+    output_dir: str | Path = SELF_RESULTS_DIR / "logs",
     filename: str | None = None,
 ) -> Path:
     out_dir = Path(output_dir)
@@ -194,7 +195,8 @@ def save_run_metadata(
     device: str,
     best_val_acc: float,
     checkpoint_path: str | Path | None = None,
-    output_dir: str | Path = "./selfNN/metaData",
+    output_dir: str | Path = SELF_METADATA_DIR,
+    extra_info: dict | None = None,
 ) -> Path:
     meta_dir = Path(output_dir)
     meta_dir.mkdir(parents=True, exist_ok=True)
@@ -221,6 +223,8 @@ def save_run_metadata(
         "checkpoint_path": str(checkpoint_path) if checkpoint_path else None,
         "architecture": model_arch,
     }
+    if extra_info:
+        metadata.update(extra_info)
 
     meta_path.write_text(
         json.dumps(metadata, indent=4, ensure_ascii=False) + "\n",
@@ -229,17 +233,18 @@ def save_run_metadata(
     return meta_path
 
 
-def save_metrics(    
-    train_loss_log: list[list[float]],
-    train_acc_log: list[list[float]],
-    val_loss_log: list[list[float]],
-    val_acc_log: list[list[float]],
-    cm: np.ndarray,
-    val_y_true: list,
-    val_y_pred: list,
-    best_model) -> int:
+def save_metrics(history: dict, base_dir: str | Path = SELF_RESULTS_DIR) -> int:
+    # history é o dicionário retornado por run_epochs (core/trainer.py)
+    train_loss_log = history["train_loss"]
+    train_acc_log = history["train_acc"]
+    val_loss_log = history["val_loss"]
+    val_acc_log = history["val_acc"]
+    cm = history["cm"]
+    val_y_true = history["val_y_true"]
+    val_y_pred = history["val_y_pred"]
+    best_model = history["best_model"]
 
-    base_dir = Path("./selfNN/results")
+    base_dir = Path(base_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
 
     existing_runs = [
@@ -247,12 +252,12 @@ def save_metrics(
         for p in base_dir.iterdir()
         if p.is_dir() and p.name.startswith("run") and p.name.removeprefix("run").isdigit()
     ]
-    run_nmbr = max(existing_runs, default=0) + 1
-    out_dir = Path(f"./selfNN/results/run{run_nmbr}")
+    run_number = max(existing_runs, default=0) + 1
+    out_dir = base_dir / f"run{run_number}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    path_csv_train = write_metrics_csv(output_dir=f"{out_dir}/CSVs", loss_log=train_loss_log, acc_log=train_acc_log, phase="Train")
-    path_csv_val = write_metrics_csv(output_dir=f"{out_dir}/CSVs", loss_log=val_loss_log, acc_log=val_acc_log, phase="Val")
+    path_csv_train = write_metrics_csv(output_dir=f"{out_dir}/csv", loss_log=train_loss_log, acc_log=train_acc_log, phase="Train")
+    path_csv_val = write_metrics_csv(output_dir=f"{out_dir}/csv", loss_log=val_loss_log, acc_log=val_acc_log, phase="Val")
 
     path_graphic = plot_loss_and_accuracy(output_dir=f"{out_dir}/graphics",
                             train_loss_log=train_loss_log, 
@@ -264,7 +269,7 @@ def save_metrics(
                           cm=cm,
                           title="ConfusionMatrix")
 
-    path_sum = save_summary_log(output_dir=f"{out_dir}/metricsLog",
+    path_sum = save_summary_log(output_dir=f"{out_dir}/metrics_log",
                      loss_log=val_loss_log,
                      acc_log=val_acc_log,
                      y_true=val_y_true,
@@ -275,4 +280,4 @@ def save_metrics(
 
     print(f"CSV Train saved in: {path_csv_train}\nCSV Val saved in: {path_csv_val}\nGráfico saved in: {path_graphic}\nConfusion matrix saved in:{path_cm}\nMetrics log saved in:{path_sum}")
 
-    return run_nmbr
+    return run_number
