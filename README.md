@@ -116,10 +116,25 @@ Todos os comandos devem ser executados **na raiz do projeto**. No Windows, use o
    python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
    ```
 
-6. **Baixe o CIFAR-10** (uma vez por computador; os arquivos vão para `dataset/data/`, que não é versionado):
+6. **Baixe o CIFAR-10** (uma vez por computador, cerca de 170 MB). O dataset não é versionado no git; cada máquina precisa baixar o seu.
+
+   > ⚠️ Rode o comando **na raiz do projeto** (a pasta onde está o `train.py`). O caminho `dataset/data` é relativo à pasta atual: rodando de outro lugar (ex.: de dentro de `scripts/`), o dataset é salvo no lugar errado e o treino falha com `Dataset not found or corrupted`.
+
    ```bash
    python -c "import torchvision.datasets as d; d.CIFAR10('dataset/data', train=True, download=True); d.CIFAR10('dataset/data', train=False, download=True)"
    ```
+
+   O resultado deve ficar assim:
+
+   ```
+   Redes-em-visao/
+   └── dataset/
+       └── data/
+           ├── cifar-10-batches-py/     ← usado pelo código
+           └── cifar-10-python.tar.gz   ← arquivo baixado (pode ser apagado)
+   ```
+
+   Para conferir: `ls dataset/data` deve mostrar `cifar-10-batches-py`.
 
 ---
 
