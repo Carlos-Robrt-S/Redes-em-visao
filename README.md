@@ -46,9 +46,12 @@ Para permitir comparações justas entre arquiteturas próprias e modelos basead
 
 Execute os módulos a partir da raiz do projeto usando `python -m` (ou `python3 -m`):
 
-* **CNN própria (`self_nn`)**:
+* **CNN própria (`self_nn`)**: cada variação altera uma única característica do baseline (BatchNorm, número de filtros, classificador com Global Average Pooling):
   ```bash
   python -m train --model baseline
+  python -m train --model batch_norm
+  python -m train --model wide
+  python -m train --model gap
   ```
 
 * **Transfer learning (`transfer_nn`)**: `--model` em `resnet18` ou `mobilenet_v2` e `--strategy` em `frozen`, `partial`, `full` ou `scratch`:

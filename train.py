@@ -17,11 +17,17 @@ from core.paths import SELF_RESULTS_DIR, SELF_METADATA_DIR, TRANSFER_RESULTS_DIR
 from dataset.loader import ImgDataset, transform_cifar_224, transform_imagenet_224
 from dataset.hyper_param import HYPER_PARAMS, TRANSFER_HYPER_PARAMS
 from self_nn.model.baseline_model import NeuralNetwork
+from self_nn.model.batch_norm_model import BatchNormNetwork
+from self_nn.model.wide_model import WideNetwork
+from self_nn.model.gap_model import GapNetwork
 from transfer_nn.model.transfer_models import ARCHITECTURES, STRATEGIES, build_transfer_model
 
 # Registro das CNNs próprias: para um novo experimento da etapa 1, crie a classe e adicione aqui
 SELF_MODELS = {
     "baseline": NeuralNetwork,
+    "batch_norm": BatchNormNetwork,
+    "wide": WideNetwork,
+    "gap": GapNetwork,
 }
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
