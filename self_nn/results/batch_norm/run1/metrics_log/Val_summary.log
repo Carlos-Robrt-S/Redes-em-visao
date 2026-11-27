@@ -1,0 +1,21 @@
+=== Resumo de Métricas (Val) ===
+Média Loss (épocas):     0.9756
+Média Acurácia (épocas): 0.7561
+
+--- Métricas Globais ---
+Precision (macro):    0.7776 | (weighted): 0.7776
+Recall    (macro):    0.7788 | (weighted): 0.7788
+F1-Score  (macro):    0.7772 | (weighted): 0.7772
+
+--- Métricas por Classe ---
+Classe        Precision     Recall   F1-Score  Suporte
+airplane         0.7817     0.7880     0.7849      500
+automobile       0.8943     0.8800     0.8871      500
+bird             0.6887     0.7080     0.6982      500
+cat              0.6486     0.5280     0.5821      500
+deer             0.7369     0.7900     0.7625      500
+dog              0.7058     0.7100     0.7079      500
+frog             0.8022     0.8600     0.8301      500
+horse            0.7737     0.8340     0.8027      500
+ship             0.8745     0.8500     0.8621      500
+truck            0.8696     0.8400     0.8545      500

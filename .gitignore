@@ -231,3 +231,5 @@ dataset/data
 !transfer_nn/results/**
 !test_results/
 !test_results/**
+
+results_*.zip
