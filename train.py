@@ -7,17 +7,17 @@ Ponto de entrada único para treinar qualquer modelo (na raiz do projeto):
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
-import numpy as np
 import torch
 from torch import nn
 from torchvision.transforms import v2
 from core.trainer import run_epochs, evaluate, count_parameters
-from core.filePlot import save_metrics, save_run_metadata
+from core.file_plot import save_metrics, save_run_metadata
+from core.reproducibility import seed_everything
 from core.paths import SELF_RESULTS_DIR, SELF_METADATA_DIR, TRANSFER_RESULTS_DIR, TRANSFER_METADATA_DIR
-from dataset.loader import ImgDataset, transform224x224, transformImagenet224x224
-from dataset.hyperParam import hyperParamsDict, transferHyperParamsDict
-from selfNN.model.baselineModel import NeuralNetwork
-from transferNN.model.transferModels import ARCHITECTURES, STRATEGIES, build_transfer_model
+from dataset.loader import ImgDataset, transform_cifar_224, transform_imagenet_224
+from dataset.hyper_param import HYPER_PARAMS, TRANSFER_HYPER_PARAMS
+from self_nn.model.baseline_model import NeuralNetwork
+from transfer_nn.model.transfer_models import ARCHITECTURES, STRATEGIES, build_transfer_model
 
 # Registro das CNNs próprias: para um novo experimento da etapa 1, crie a classe e adicione aqui
 SELF_MODELS = {
@@ -39,19 +39,19 @@ class Experiment:
 
 def build_experiment(model_name: str, strategy: str | None, epochs: int | None, lr: float | None) -> Experiment:
     if model_name in SELF_MODELS:
-        hp = dict(hyperParamsDict)
+        hp = dict(HYPER_PARAMS)
         model = SELF_MODELS[model_name]()
-        name, transform = model_name, transform224x224
+        name, transform = model_name, transform_cifar_224
         results_dir, metadata_dir = SELF_RESULTS_DIR / name, SELF_METADATA_DIR / name
     else:
         if strategy is None:
             raise SystemExit(f"--strategy é obrigatório para {model_name}. Opções: {STRATEGIES}")
-        hp = dict(transferHyperParamsDict)
+        hp = dict(TRANSFER_HYPER_PARAMS)
         hp["LR"] = hp["LR_BY_STRATEGY"][strategy]
         model = build_transfer_model(model_name, strategy)
         name = f"{model_name}_{strategy}"
         # Pesos do ImageNet esperam a normalização do ImageNet; do zero usa a do CIFAR (como o baseline)
-        transform = transform224x224 if strategy == "scratch" else transformImagenet224x224
+        transform = transform_cifar_224 if strategy == "scratch" else transform_imagenet_224
         results_dir, metadata_dir = TRANSFER_RESULTS_DIR / name, TRANSFER_METADATA_DIR / name
 
     if epochs is not None:
@@ -76,12 +76,11 @@ def main() -> None:
     exp = build_experiment(args.model, args.strategy, args.epochs, args.lr)
     hp = exp.hyperparams
 
-    torch.manual_seed(hp["SEED"])
-    np.random.seed(hp["SEED"])
+    seed_everything(hp["SEED"])
 
     print(f"Device: {device} | Experimento: {exp.name} | LR: {hp['LR']} | Épocas: {hp['EPOCHS']}")
 
-    train_set, val_set = ImgDataset(transform=exp.transform).getTrainValSet(batch_size=hp["BATCH_SIZE"])
+    train_set, val_set = ImgDataset(transform=exp.transform).get_train_val_set(batch_size=hp["BATCH_SIZE"])
 
     model = exp.model.to(device)
     total_params, trainable_params = count_parameters(model)
@@ -100,27 +99,17 @@ def main() -> None:
     model.load_state_dict(history["best_model"])
     *_, val_inference_time = evaluate(model, val_set, device, loss_fn, desc="Inferência")
 
-    run_nmbr = save_metrics(
-        train_loss_log=history["train_loss"],
-        train_acc_log=history["train_acc"],
-        val_loss_log=history["val_loss"],
-        val_acc_log=history["val_acc"],
-        cm=history["cm"],
-        val_y_true=history["val_y_true"],
-        val_y_pred=history["val_y_pred"],
-        best_model=history["best_model"],
-        base_dir=exp.results_dir,
-    )
+    run_number = save_metrics(history, base_dir=exp.results_dir)
 
     save_run_metadata(
-        run_number=run_nmbr,
+        run_number=run_number,
         hyperparams=hp,
         model_arch=str(model),
         optimizer_name=optimizer.__class__.__name__,
         loss_name=loss_fn.__class__.__name__,
         device=device,
         best_val_acc=history["best_val_acc"],
-        checkpoint_path=exp.results_dir / f"run{run_nmbr}" / "best_model.pt",
+        checkpoint_path=exp.results_dir / f"run{run_number}" / "best_model.pt",
         output_dir=exp.metadata_dir,
         extra_info={
             "experiment": exp.name,

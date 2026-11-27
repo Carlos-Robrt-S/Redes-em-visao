@@ -6,18 +6,20 @@ import torch
 from torch import nn
 from sklearn.metrics import confusion_matrix
 from core.trainer import evaluate, count_parameters
-from core.filePlot import CLASS_NAMES, plot_confusion_matrix, save_summary_log
+from core.file_plot import CLASS_NAMES, plot_confusion_matrix, save_summary_log
 from core.paths import SELF_METADATA_DIR, SELF_RESULTS_DIR, TRANSFER_METADATA_DIR, TRANSFER_RESULTS_DIR, TEST_RESULTS_DIR
+from core.reproducibility import seed_everything
+from dataset.hyper_param import TRANSFER_HYPER_PARAMS
 from dataset.loader import ImgDataset
 from train import SELF_MODELS, build_experiment, device
-from transferNN.model.transferModels import ARCHITECTURES, STRATEGIES
+from transfer_nn.model.transfer_models import ARCHITECTURES, STRATEGIES
 
-GROUP_LABELS = {"selfNN": "CNN própria", "resnet18": "ResNet18", "mobilenet_v2": "MobileNetV2"}
+GROUP_LABELS = {"self_nn": "CNN própria", "resnet18": "ResNet18", "mobilenet_v2": "MobileNetV2"}
 
 
 def _parse_experiment(experiment: str) -> tuple[str, str, str | None]:
     if experiment in SELF_MODELS:
-        return "selfNN", experiment, None
+        return "self_nn", experiment, None
     for arch in ARCHITECTURES:
         strategy = experiment.removeprefix(f"{arch}_")
         if experiment.startswith(f"{arch}_") and strategy in STRATEGIES:
@@ -66,7 +68,7 @@ def evaluate_on_test(run: dict) -> dict:
     model.load_state_dict(torch.load(run["checkpoint"], map_location="cpu"))
     model.to(device)
 
-    test_set = ImgDataset.getTestSet(batch_size=exp.hyperparams["BATCH_SIZE"], transform=exp.transform)
+    test_set = ImgDataset.get_test_set(batch_size=exp.hyperparams["BATCH_SIZE"], transform=exp.transform)
     loss, acc, y_true, y_pred, inference_time = evaluate(model, test_set, device, nn.CrossEntropyLoss(), desc=f"Teste {run['experiment']}")
 
     cm = confusion_matrix(y_true, y_pred, labels=np.arange(len(CLASS_NAMES)))
@@ -134,6 +136,7 @@ def save_comparison(results: list[dict]) -> None:
 
 
 def main() -> None:
+    seed_everything(TRANSFER_HYPER_PARAMS["SEED"])
     runs = collect_runs()
     if not runs:
         raise SystemExit("Nenhum run encontrado. Treine os modelos com 'python -m train' primeiro.")
